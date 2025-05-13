@@ -14,7 +14,7 @@ def is_admin(user):
 def home(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
-    return render(request, 'myapp/index.html')
+    return redirect('login')
 
 def login_view(request):
     if request.method == 'POST':
