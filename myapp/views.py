@@ -1,15 +1,22 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required, user_passes_test, permission_required
+from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum
 from django.utils import timezone
+from django.core.exceptions import PermissionDenied
 from .models import User, Product, Order, OrderItem
 import json
 
 def is_admin(user):
     return user.role == 'admin'
+
+def check_permissions(request, required_permissions):
+    for perm in required_permissions:
+        if not request.user.has_perm(perm):
+            raise PermissionDenied
+    return True
 
 def home(request):
     if request.user.is_authenticated:
@@ -32,6 +39,13 @@ def login_view(request):
 
 @login_required
 def dashboard(request):
+    print("Checking user permissions...")
+    can_view_orders = request.user.has_perm('myapp.view_order')
+    can_view_products = request.user.has_perm('myapp.view_product')
+    can_view_users = request.user.has_perm('myapp.view_user')
+    can_add_order = request.user.has_perm('myapp.add_order')
+    can_change_order = request.user.has_perm('myapp.change_order')
+    
     context = {
         'total_revenue': Order.objects.filter(status='Paid').aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
         'total_udhaar': User.objects.aggregate(Sum('udhaar'))['udhaar__sum'] or 0,
@@ -40,67 +54,121 @@ def dashboard(request):
         'total_products': Product.objects.count(),
         'total_orders': Order.objects.count(),
         'today_orders': Order.objects.filter(order_date=timezone.now().date(), status='Unpaid'),
-        'due_users': User.objects.filter(udhaar__gt=0, due_date__isnull=False).order_by('due_date')
+        'due_users': User.objects.filter(udhaar__gt=0, due_date__isnull=False).order_by('due_date'),
+        'can_view_orders': can_view_orders,
+        'can_view_products': can_view_products,
+        'can_view_users': can_view_users,
+        'can_add_order': can_add_order,
+        'can_change_order': can_change_order,
     }
     return render(request, 'myapp/dashboard.html', context)
 
 @login_required
 def products(request):
-    if not request.user.is_admin and request.method != 'GET':
-        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    print("Checking product permissions...")
+    can_add_product = request.user.has_perm('myapp.add_product')
+    can_change_product = request.user.has_perm('myapp.change_product')
+    can_delete_product = request.user.has_perm('myapp.delete_product')
+    
+    if not request.user.has_perm('myapp.view_product'):
+        return render(request, 'myapp/permission_denied.html')
+        
     products = Product.objects.all()
-    return render(request, 'myapp/products.html', {'products': products})
+    context = {
+        'products': products,
+        'can_add_product': can_add_product,
+        'can_change_product': can_change_product,
+        'can_delete_product': can_delete_product,
+    }
+    return render(request, 'myapp/products.html', context)
 
 @login_required
 def orders(request):
+    print("Checking order permissions...")
+    can_add_order = request.user.has_perm('myapp.add_order')
+    can_change_order = request.user.has_perm('myapp.change_order')
+    can_delete_order = request.user.has_perm('myapp.delete_order')
+    
+    if not request.user.has_perm('myapp.view_order'):
+        return render(request, 'myapp/permission_denied.html')
+        
     if request.user.role == 'admin':
         orders = Order.objects.all()
     else:
         orders = Order.objects.filter(user=request.user)
-    return render(request, 'myapp/orders.html', {'orders': orders})
+    
+    context = {
+        'orders': orders,
+        'can_add_order': can_add_order,
+        'can_change_order': can_change_order,
+        'can_delete_order': can_delete_order,
+    }
+    return render(request, 'myapp/orders.html', context)
 
 @login_required
 @user_passes_test(is_admin)
 def users(request):
+    print("Checking user permissions...")
+    can_add_user = request.user.has_perm('myapp.add_user')
+    can_change_user = request.user.has_perm('myapp.change_user')
+    can_delete_user = request.user.has_perm('myapp.delete_user')
+    
+    if not request.user.has_perm('myapp.view_user'):
+        return render(request, 'myapp/permission_denied.html')
+        
     users = User.objects.filter(udhaar__gt=0)
-    return render(request, 'myapp/users.html', {'users': users})
+    context = {
+        'users': users,
+        'can_add_user': can_add_user,
+        'can_change_user': can_change_user,
+        'can_delete_user': can_delete_user,
+    }
+    return render(request, 'myapp/users.html', context)
 
-# API Views
+# API Views with permission checks
 @login_required
 @csrf_exempt
 def product_list(request):
-    if request.method == 'GET':
-        products = Product.objects.all()
-        data = [{'id': p.id, 'name': p.name, 'price': str(p.price), 'stock': p.stock} for p in products]
-        return JsonResponse(data, safe=False)
-    elif request.method == 'POST' and request.user.role == 'admin':
-        data = json.loads(request.body)
-        product = Product.objects.create(
-            name=data['name'],
-            price=data['price'],
-            stock=data['stock']
-        )
-        return JsonResponse({'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock})
-    return JsonResponse({'error': 'Unauthorized'}, status=403)
+    try:
+        if request.method == 'GET':
+            check_permissions(request, ['myapp.view_product'])
+            products = Product.objects.all()
+            data = [{'id': p.id, 'name': p.name, 'price': str(p.price), 'stock': p.stock} for p in products]
+            return JsonResponse(data, safe=False)
+        elif request.method == 'POST':
+            check_permissions(request, ['myapp.add_product'])
+            data = json.loads(request.body)
+            product = Product.objects.create(
+                name=data['name'],
+                price=data['price'],
+                stock=data['stock']
+            )
+            return JsonResponse({'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock})
+    except PermissionDenied:
+        return HttpResponseForbidden("Permission denied")
 
 @login_required
 @csrf_exempt
 def product_detail(request, pk):
-    product = get_object_or_404(Product, pk=pk)
-    if request.method == 'GET':
-        data = {'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock}
-        return JsonResponse(data)
-    elif request.method in ['PUT', 'PATCH'] and request.user.role == 'admin':
-        data = json.loads(request.body)
-        if 'name' in data:
-            product.name = data['name']
-        if 'price' in data:
-            product.price = data['price']
-        if 'stock' in data:
-            product.stock = data['stock']
-        product.save()
-        return JsonResponse({'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock})
-    return JsonResponse({'error': 'Unauthorized'}, status=403)
+    try:
+        product = get_object_or_404(Product, pk=pk)
+        if request.method == 'GET':
+            check_permissions(request, ['myapp.view_product'])
+            data = {'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock}
+            return JsonResponse(data)
+        elif request.method in ['PUT', 'PATCH']:
+            check_permissions(request, ['myapp.change_product'])
+            data = json.loads(request.body)
+            if 'name' in data:
+                product.name = data['name']
+            if 'price' in data:
+                product.price = data['price']
+            if 'stock' in data:
+                product.stock = data['stock']
+            product.save()
+            return JsonResponse({'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock})
+    except PermissionDenied:
+        return HttpResponseForbidden("Permission denied")
 
 @login_required
 @csrf_exempt
