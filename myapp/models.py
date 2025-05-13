@@ -5,9 +5,13 @@ from django.utils import timezone
 class User(AbstractUser):
     ROLE_CHOICES = (
         ('admin', 'Admin'),
+        ('entry_operator', 'Entry Operator'),
+        ('accountant', 'Accountant'),
+        ('order_manager', 'Order Manager'),
+        ('product_manager', 'Product Manager'),
         ('user', 'User'),
     )
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
     udhaar = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     due_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
