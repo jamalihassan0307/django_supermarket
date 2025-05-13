@@ -6,7 +6,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Udhaar Management System{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'myapp/css/styles.css' %}" />
-    {% block extra_css %}{% endblock %}
+    {% block extra_css %}
+    <style>
+    .user-menu {
+      position: relative;
+      display: inline-block;
+      margin-left: 1rem;
+    }
+
+    .username {
+      color: white;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+
+    .username:after {
+      content: '▼';
+      font-size: 0.8em;
+      margin-left: 0.5rem;
+    }
+
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      background-color: white;
+      min-width: 160px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      border-radius: 5px;
+      z-index: 1;
+    }
+
+    .dropdown-content a {
+      color: #333;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+    }
+
+    .dropdown-content a:hover {
+      background-color: #f8f9fa;
+    }
+
+    .user-menu:hover .dropdown-content {
+      display: block;
+    }
+
+    .user-menu:hover .username {
+      opacity: 0.8;
+    }
+    </style>
+    {% endblock %}
   </head>
   <body>
     {% if user.is_authenticated %}
@@ -40,58 +92,4 @@
 
     {% block extra_js %}{% endblock %}
   </body>
-</html>
-
-{% block extra_css %}
-<style>
-.user-menu {
-  position: relative;
-  display: inline-block;
-  margin-left: 1rem;
-}
-
-.username {
-  color: white;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.username:after {
-  content: '▼';
-  font-size: 0.8em;
-  margin-left: 0.5rem;
-}
-
-.dropdown-content {
-  display: none;
-  position: absolute;
-  right: 0;
-  background-color: white;
-  min-width: 160px;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-  border-radius: 5px;
-  z-index: 1;
-}
-
-.dropdown-content a {
-  color: #333;
-  padding: 12px 16px;
-  text-decoration: none;
-  display: block;
-}
-
-.dropdown-content a:hover {
-  background-color: #f8f9fa;
-}
-
-.user-menu:hover .dropdown-content {
-  display: block;
-}
-
-.user-menu:hover .username {
-  opacity: 0.8;
-}
-</style>
-{% endblock %} 
+</html> 
