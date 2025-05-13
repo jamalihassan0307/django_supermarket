@@ -1,0 +1,143 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}Products - Udhaar Management{% endblock %}
+
+{% block content %}
+<section id="products" class="section">
+  <h2>Product Management</h2>
+  <div class="search-container">
+    <input
+      type="text"
+      id="productSearch"
+      class="search-input"
+      placeholder="Search products..."
+    />
+  </div>
+  {% if user.role == 'admin' %}
+  <button onclick="showAddProductForm()" class="action-btn">
+    Add New Product
+  </button>
+  {% endif %}
+
+  <div id="productsList" class="list-container">
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Stock</th>
+        {% if user.role == 'admin' %}
+        <th>Actions</th>
+        {% endif %}
+      </tr>
+      {% for product in products %}
+      <tr>
+        <td>{{ product.name }}</td>
+        <td>PKR {{ product.price }}</td>
+        <td>{{ product.stock }}</td>
+        {% if user.role == 'admin' %}
+        <td>
+          <button onclick="editProduct({{ product.id }})" class="action-btn">Edit</button>
+          <button onclick="updateStock({{ product.id }})" class="action-btn">Update Stock</button>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+
+<!-- Product Modal -->
+{% if user.role == 'admin' %}
+<div id="productModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="hideModal()">&times;</span>
+    <h2 id="modalTitle">Add Product</h2>
+    <form id="productForm" method="post" action="{% url 'product_list' %}">
+      {% csrf_token %}
+      <div class="input-group">
+        <label for="productName">Product Name</label>
+        <input type="text" id="productName" name="name" required />
+      </div>
+      <div class="input-group">
+        <label for="productPrice">Price</label>
+        <input type="number" id="productPrice" name="price" min="0" step="0.01" required />
+      </div>
+      <div class="input-group">
+        <label for="productStock">Stock</label>
+        <input type="number" id="productStock" name="stock" min="0" required />
+      </div>
+      <div class="button-group">
+        <button type="button" class="cancel-btn" onclick="hideModal()">Cancel</button>
+        <button type="submit" class="action-btn">Save Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showAddProductForm() {
+  document.getElementById("modalTitle").textContent = "Add New Product";
+  document.getElementById("productForm").reset();
+  document.getElementById("productModal").classList.add("show");
+}
+
+function hideModal() {
+  document.getElementById("productModal").classList.remove("show");
+  document.getElementById("productForm").reset();
+}
+
+function editProduct(productId) {
+  fetch(`/api/products/${productId}/`)
+    .then(response => response.json())
+    .then(product => {
+      document.getElementById("modalTitle").textContent = "Edit Product";
+      document.getElementById("productName").value = product.name;
+      document.getElementById("productPrice").value = product.price;
+      document.getElementById("productStock").value = product.stock;
+      document.getElementById("productForm").action = `/api/products/${productId}/`;
+      document.getElementById("productModal").classList.add("show");
+    });
+}
+
+function updateStock(productId) {
+  const newStock = prompt("Enter new stock quantity:");
+  if (newStock === null) return;
+
+  fetch(`/api/products/${productId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    },
+    body: JSON.stringify({ stock: parseInt(newStock) })
+  })
+  .then(response => {
+    if (response.ok) {
+      window.location.reload();
+    } else {
+      alert('Error updating stock');
+    }
+  });
+}
+
+document.getElementById("productSearch").addEventListener("keyup", function() {
+  const searchTerm = this.value.toLowerCase();
+  const rows = document.querySelectorAll("#productsList table tr:not(:first-child)");
+  
+  rows.forEach(row => {
+    const name = row.cells[0].textContent.toLowerCase();
+    const price = row.cells[1].textContent.toLowerCase();
+    const stock = row.cells[2].textContent.toLowerCase();
+    
+    if (name.includes(searchTerm) || price.includes(searchTerm) || stock.includes(searchTerm)) {
+      row.style.display = "";
+    } else {
+      row.style.display = "none";
+    }
+  });
+});
+</script>
+{% endblock %} 
