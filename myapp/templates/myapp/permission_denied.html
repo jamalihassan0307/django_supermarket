@@ -1,0 +1,55 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}Permission Denied - Udhaar Management System{% endblock %}
+
+{% block content %}
+<div class="permission-denied">
+  <div class="error-container">
+    <div class="error-icon">⚠️</div>
+    <h2>Permission Denied</h2>
+    <p>Sorry, you don't have permission to access this feature.</p>
+    <div class="actions">
+      <a href="{% url 'dashboard' %}" class="action-btn">Return to Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.permission-denied {
+  height: calc(100vh - 80px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.error-container {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 400px;
+}
+
+.error-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.error-container h2 {
+  color: #ff4757;
+  margin-bottom: 1rem;
+}
+
+.error-container p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.actions {
+  margin-top: 1.5rem;
+}
+</style>
+{% endblock %} 
