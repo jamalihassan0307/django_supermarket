@@ -1,0 +1,190 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}Orders - Udhaar Management{% endblock %}
+
+{% block content %}
+<section id="orders" class="section">
+  <h2>Orders Management</h2>
+  <div class="search-container">
+    <input
+      type="text"
+      id="orderSearch"
+      class="search-input"
+      placeholder="Search orders by user or status..."
+    />
+  </div>
+  <button onclick="showNewOrderForm()" class="action-btn">Create New Order</button>
+
+  <div id="ordersList" class="list-container">
+    <table>
+      <tr>
+        <th>Order ID</th>
+        <th>User</th>
+        <th>Total Amount</th>
+        <th>Status</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+      {% for order in orders %}
+      <tr>
+        <td>{{ order.id }}</td>
+        <td>{{ order.user.username }}</td>
+        <td>PKR {{ order.total_amount }}</td>
+        <td>{{ order.status }}</td>
+        <td>{{ order.order_date }}</td>
+        <td>
+          <button onclick="viewOrderDetails({{ order.id }})" class="action-btn">View Details</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+
+<!-- Order Modal -->
+<div id="orderModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="hideOrderModal()">&times;</span>
+    <h2 id="orderModalTitle">Create New Order</h2>
+    <form id="orderForm" method="post" action="{% url 'order_list' %}">
+      {% csrf_token %}
+      <div class="input-group">
+        <label for="orderUser">Select User</label>
+        <select id="orderUser" name="user" required {% if not user.is_admin %}disabled{% endif %}>
+          {% if user.is_admin %}
+            <option value="">Select User</option>
+            {% for u in users %}
+            <option value="{{ u.id }}">{{ u.username }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="{{ user.id }}" selected>{{ user.username }}</option>
+          {% endif %}
+        </select>
+      </div>
+      <div id="orderProducts">
+        <div class="order-product input-group">
+          <label>Select Product</label>
+          <select class="product-select" name="products[]" required>
+            <option value="">Select Product</option>
+            {% for product in products %}
+            {% if product.stock > 0 %}
+            <option value="{{ product.id }}" data-stock="{{ product.stock }}">
+              {{ product.name }} (Stock: {{ product.stock }})
+            </option>
+            {% endif %}
+            {% endfor %}
+          </select>
+          <input type="number" class="quantity-input" name="quantities[]" placeholder="Quantity" min="1" required />
+          <button type="button" class="cancel-btn" onclick="removeProductField(this)">Remove</button>
+        </div>
+      </div>
+      <button type="button" class="action-btn" onclick="addProductField()">Add Another Product</button>
+      <div class="input-group">
+        <label for="orderStatus">Payment Status</label>
+        <select id="orderStatus" name="status" required>
+          <option value="Paid">Paid</option>
+          <option value="Unpaid">Unpaid</option>
+        </select>
+      </div>
+      <div class="button-group">
+        <button type="button" class="cancel-btn" onclick="hideOrderModal()">Cancel</button>
+        <button type="submit" class="action-btn">Create Order</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showNewOrderForm() {
+  document.getElementById("orderModalTitle").textContent = "Create New Order";
+  document.getElementById("orderForm").reset();
+  document.getElementById("orderModal").classList.add("show");
+}
+
+function hideOrderModal() {
+  document.getElementById("orderModal").classList.remove("show");
+  document.getElementById("orderForm").reset();
+  resetOrderProducts();
+}
+
+function resetOrderProducts() {
+  const orderProducts = document.getElementById("orderProducts");
+  orderProducts.innerHTML = "";
+  addProductField();
+}
+
+function addProductField() {
+  const orderProducts = document.getElementById("orderProducts");
+  const productDiv = document.createElement("div");
+  productDiv.className = "order-product input-group";
+  
+  const template = document.querySelector(".order-product").cloneNode(true);
+  template.querySelector(".product-select").value = "";
+  template.querySelector(".quantity-input").value = "";
+  
+  orderProducts.appendChild(template);
+}
+
+function removeProductField(button) {
+  if (document.querySelectorAll(".order-product").length > 1) {
+    button.parentElement.remove();
+  }
+}
+
+function viewOrderDetails(orderId) {
+  fetch(`/api/orders/${orderId}/`)
+    .then(response => response.json())
+    .then(order => {
+      let details = `Order Details:\n\n`;
+      details += `Order ID: ${order.id}\n`;
+      details += `Date: ${order.order_date}\n`;
+      details += `Status: ${order.status}\n\n`;
+      
+      details += `Products:\n`;
+      order.items.forEach(item => {
+        details += `${item.product} x ${item.quantity} = PKR ${item.price}\n`;
+      });
+      
+      details += `\nTotal Amount: PKR ${order.total_amount}`;
+      
+      alert(details);
+    });
+}
+
+document.getElementById("orderSearch").addEventListener("keyup", function() {
+  const searchTerm = this.value.toLowerCase();
+  const rows = document.querySelectorAll("#ordersList table tr:not(:first-child)");
+  
+  rows.forEach(row => {
+    const user = row.cells[1].textContent.toLowerCase();
+    const status = row.cells[3].textContent.toLowerCase();
+    const date = row.cells[4].textContent.toLowerCase();
+    
+    if (user.includes(searchTerm) || status.includes(searchTerm) || date.includes(searchTerm)) {
+      row.style.display = "";
+    } else {
+      row.style.display = "none";
+    }
+  });
+});
+
+// Add event listeners to quantity inputs
+document.addEventListener('change', function(e) {
+  if (e.target.classList.contains('quantity-input')) {
+    const select = e.target.parentElement.querySelector('.product-select');
+    const stock = parseInt(select.options[select.selectedIndex].getAttribute('data-stock'));
+    const quantity = parseInt(e.target.value);
+    
+    if (quantity > stock) {
+      alert(`Maximum available stock is ${stock}`);
+      e.target.value = stock;
+    } else if (quantity < 1) {
+      alert('Minimum quantity is 1');
+      e.target.value = 1;
+    }
+  }
+});
+</script>
+{% endblock %} 
