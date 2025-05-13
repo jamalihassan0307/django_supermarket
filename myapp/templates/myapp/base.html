@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Udhaar Management System{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'myapp/css/styles.css' %}" />
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body>
+    {% if user.is_authenticated %}
+    <nav class="navbar">
+      <div class="logo">Udhaar Management</div>
+      <div class="nav-links">
+        <a href="{% url 'dashboard' %}" class="nav-btn">Dashboard</a>
+        {% if user.role == 'admin' %}
+        <a href="{% url 'products' %}" class="nav-btn">Products</a>
+        {% endif %}
+        <a href="{% url 'orders' %}" class="nav-btn">Orders</a>
+        {% if user.role == 'admin' %}
+        <a href="{% url 'users' %}" class="nav-btn">Users</a>
+        {% endif %}
+        <a href="{% url 'logout' %}" class="nav-btn logout">Logout</a>
+      </div>
+    </nav>
+    {% endif %}
+
+    <div class="container">
+      {% block content %}{% endblock %}
+    </div>
+
+    {% block extra_js %}{% endblock %}
+  </body>
+</html> 
