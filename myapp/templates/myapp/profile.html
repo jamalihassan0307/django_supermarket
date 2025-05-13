@@ -1,0 +1,157 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}My Profile - Udhaar Management System{% endblock %}
+
+{% block content %}
+<section class="profile-section">
+  <div class="profile-container">
+    <div class="profile-header">
+      <h2>My Profile</h2>
+      {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+        <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="profile-content">
+      <form method="post" class="profile-form">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" value="{{ user.username }}" required {% if not user.is_superuser %}readonly{% endif %}>
+        </div>
+        
+        <div class="form-group">
+          <label for="first_name">First Name</label>
+          <input type="text" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="last_name">Last Name</label>
+          <input type="text" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ user.email }}" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="current_password">Current Password</label>
+          <input type="password" id="current_password" name="current_password">
+        </div>
+        
+        <div class="form-group">
+          <label for="new_password">New Password (leave blank to keep current)</label>
+          <input type="password" id="new_password" name="new_password">
+        </div>
+        
+        <div class="form-group">
+          <label for="confirm_password">Confirm New Password</label>
+          <input type="password" id="confirm_password" name="confirm_password">
+        </div>
+
+        <div class="profile-info">
+          <p><strong>Role:</strong> {{ user.get_role_display }}</p>
+          <p><strong>Last Login:</strong> {{ user.last_login|date:"F j, Y, g:i a" }}</p>
+          <p><strong>Date Joined:</strong> {{ user.date_joined|date:"F j, Y" }}</p>
+        </div>
+        
+        <div class="button-group">
+          <button type="submit" class="action-btn">Update Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-section {
+  padding: 2rem;
+}
+
+.profile-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.profile-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.profile-header h2 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.profile-form .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.profile-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #666;
+}
+
+.profile-form input {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.profile-form input:read-only {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+}
+
+.profile-info {
+  margin: 2rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 5px;
+}
+
+.profile-info p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+.messages {
+  margin-bottom: 1rem;
+}
+
+.message {
+  padding: 1rem;
+  border-radius: 5px;
+  margin-bottom: 0.5rem;
+}
+
+.message.success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.button-group {
+  text-align: center;
+  margin-top: 2rem;
+}
+</style>
+{% endblock %} 
