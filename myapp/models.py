@@ -14,7 +14,7 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.username
+        return self.username 
 
 class Product(models.Model):
     name = models.CharField(max_length=255)
