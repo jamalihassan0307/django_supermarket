@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
+from django.contrib import messages
 from .models import User, Product, Order, OrderItem
 import json
 
@@ -25,17 +26,51 @@ def home(request):
 
 def login_view(request):
     if request.method == 'POST':
-        email = request.POST.get('email')
+        username = request.POST.get('username')
         password = request.POST.get('password')
-        try:
-            user = User.objects.get(email=email)
-            if user.check_password(password):
-                login(request, user)
-                return redirect('dashboard')
-        except User.DoesNotExist:
-            pass
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
         return render(request, 'myapp/login.html', {'error': 'Invalid credentials'})
     return render(request, 'myapp/login.html')
+
+@login_required
+def profile(request):
+    if request.method == 'POST':
+        user = request.user
+        current_password = request.POST.get('current_password')
+        
+        # Verify current password
+        if not current_password or not user.check_password(current_password):
+            messages.error(request, 'Current password is incorrect')
+            return redirect('profile')
+            
+        # Update basic info
+        user.first_name = request.POST.get('first_name')
+        user.last_name = request.POST.get('last_name')
+        user.email = request.POST.get('email')
+        
+        # Update password if provided
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        if new_password:
+            if new_password != confirm_password:
+                messages.error(request, 'New passwords do not match')
+                return redirect('profile')
+            user.set_password(new_password)
+            
+        user.save()
+        messages.success(request, 'Profile updated successfully')
+        
+        # If password was changed, re-authenticate
+        if new_password:
+            user = authenticate(username=user.username, password=new_password)
+            login(request, user)
+            
+        return redirect('profile')
+        
+    return render(request, 'myapp/profile.html')
 
 @login_required
 def dashboard(request):
