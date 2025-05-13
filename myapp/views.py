@@ -327,8 +327,16 @@ def user_list(request):
             user.first_name = data.get('first_name', '')
             user.last_name = data.get('last_name', '')
             user.udhaar = data.get('udhaar', 0)
-            if 'due_date' in data:
-                user.due_date = data['due_date']
+            
+            # Handle due_date properly
+            due_date = data.get('due_date')
+            if due_date:
+                try:
+                    # Parse the date string to a datetime object
+                    user.due_date = timezone.datetime.strptime(due_date, '%Y-%m-%d').date()
+                except ValueError:
+                    return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+            
             user.save()
             
             return JsonResponse({

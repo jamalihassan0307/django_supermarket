@@ -91,12 +91,20 @@ function hideUserModal() {
 function handleFormSubmit(event) {
   event.preventDefault();
   
+  // Get the date value and format it as YYYY-MM-DD
+  const dueDateInput = document.getElementById("userDueDate");
+  let dueDate = null;
+  if (dueDateInput.value) {
+    const date = new Date(dueDateInput.value);
+    dueDate = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+  }
+  
   const formData = {
     username: document.getElementById("userName").value,
     email: document.getElementById("userEmail").value,
     password: document.getElementById("userPassword").value,
     udhaar: parseFloat(document.getElementById("userUdhaar").value) || 0,
-    due_date: document.getElementById("userDueDate").value || null
+    due_date: dueDate
   };
 
   fetch('/api/users/', {
