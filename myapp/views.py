@@ -161,15 +161,30 @@ def users(request):
         return render(request, 'myapp/permission_denied.html')
     
     can_add_user = True  # Both admin and entry operators can add users
-    can_change_user = request.user.role == 'admin'  # Only admin can modify users
+    can_change_user = request.user.role == 'admin' or request.user.role == 'entry_operator'  # Allow entry operators to modify users
     can_delete_user = request.user.role == 'admin'  # Only admin can delete users
     
-    users = User.objects.filter(udhaar__gt=0)
+    # Get filter parameter
+    filter_type = request.GET.get('filter', 'all')
+    
+    # Apply filters
+    if filter_type == 'paid':
+        users = User.objects.filter(udhaar=0)
+    elif filter_type == 'unpaid':
+        users = User.objects.filter(udhaar__gt=0)
+    else:  # 'all'
+        users = User.objects.all()
+        users = users.filter(role='user')
+    
     context = {
         'users': users,
         'can_add_user': can_add_user,
         'can_change_user': can_change_user,
         'can_delete_user': can_delete_user,
+        'current_filter': filter_type,
+        'total_users': users.count(),
+        'paid_users': User.objects.filter(udhaar=0).count(),
+        'unpaid_users': User.objects.filter(udhaar__gt=0).count(),
     }
     return render(request, 'myapp/users.html', context)
 

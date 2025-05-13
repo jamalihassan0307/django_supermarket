@@ -5,6 +5,30 @@
 {% block content %}
 <section id="users" class="section">
   <h2>Users Management</h2>
+  
+  <!-- User Stats -->
+  <div class="user-stats">
+    <div class="stat-card">
+      <h3>Total Users</h3>
+      <p>{{ total_users }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Paid Users</h3>
+      <p>{{ paid_users }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Unpaid Users</h3>
+      <p>{{ unpaid_users }}</p>
+    </div>
+  </div>
+
+  <!-- Filter Buttons -->
+  <div class="filter-buttons">
+    <a href="?filter=all" class="filter-btn {% if current_filter == 'all' %}active{% endif %}">All Users</a>
+    <a href="?filter=paid" class="filter-btn {% if current_filter == 'paid' %}active{% endif %}">Paid Users</a>
+    <a href="?filter=unpaid" class="filter-btn {% if current_filter == 'unpaid' %}active{% endif %}">Unpaid Users</a>
+  </div>
+
   <div class="search-container">
     <input
       type="text"
@@ -29,9 +53,13 @@
         <td>PKR {{ user.udhaar }}</td>
         <td>{{ user.due_date|default:"No due date" }}</td>
         <td>
+          {% if can_change_user %}
           <button onclick="editUser({{ user.id }})" class="action-btn">Edit</button>
+          {% endif %}
           <button onclick="viewUserDetails({{ user.id }})" class="action-btn">View Details</button>
+          {% if can_change_user %}
           <button onclick="markAsPaid({{ user.id }})" class="action-btn paid-btn">Mark as Paid</button>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
@@ -59,7 +87,7 @@
         <input type="password" id="userPassword" name="password" required />
       </div>
       <div class="input-group">
-        <label for="userUdhaar">Initial Udhaar Amount</label>
+        <label for="userUdhaar">Udhaar Amount</label>
         <input type="number" id="userUdhaar" name="udhaar" min="0" step="0.01" value="0" required />
       </div>
       <div class="input-group">
@@ -73,6 +101,65 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.user-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex: 1;
+  text-align: center;
+}
+
+.stat-card h3 {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.stat-card p {
+  margin: 0.5rem 0 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.filter-buttons {
+  margin-bottom: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  color: #666;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+  background: #f8f9fa;
+}
+
+.filter-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -116,12 +203,12 @@ function handleFormSubmit(event) {
     due_date: dueDate
   };
 
-  // Check if we're editing (form has action attribute) or creating new user
+  // Check if we're editing (form has data-edit-url attribute) or creating new user
   const form = document.getElementById("userForm");
   const url = form.getAttribute("data-edit-url") || '/api/users/';
   const method = form.getAttribute("data-edit-url") ? 'PATCH' : 'POST';
 
-  // Remove password from data if editing
+  // Remove password and email from data if editing
   if (method === 'PATCH') {
     delete formData.password;
     delete formData.email;
@@ -136,13 +223,12 @@ function handleFormSubmit(event) {
     body: JSON.stringify(formData)
   })
   .then(response => {
-    if (response.ok) {
-      window.location.reload();
-    } else {
+    if (!response.ok) {
       return response.json().then(data => {
         throw new Error(data.error || 'Failed to save user');
       });
     }
+    window.location.reload();
   })
   .catch(error => {
     alert('Error: ' + error.message);
@@ -151,14 +237,19 @@ function handleFormSubmit(event) {
 
 function editUser(userId) {
   fetch(`/api/users/${userId}/`)
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to fetch user details');
+      }
+      return response.json();
+    })
     .then(user => {
       document.getElementById("userModalTitle").textContent = "Edit User";
       document.getElementById("userName").value = user.name;
       document.getElementById("userUdhaar").value = user.udhaar;
       document.getElementById("userDueDate").value = user.due_date || '';
       
-      // Set the form's data-edit-url attribute instead of action
+      // Set the form's data-edit-url attribute
       const form = document.getElementById("userForm");
       form.setAttribute("data-edit-url", `/api/users/${userId}/`);
       
@@ -167,6 +258,9 @@ function editUser(userId) {
       // Hide email and password fields for editing
       document.getElementById("userEmail").parentElement.style.display = "none";
       document.getElementById("userPassword").parentElement.style.display = "none";
+    })
+    .catch(error => {
+      alert('Error: ' + error.message);
     });
 }
 
@@ -192,6 +286,9 @@ function viewUserDetails(userId) {
       }
       
       alert(details);
+    })
+    .catch(error => {
+      alert('Error: ' + error.message);
     });
 }
 
@@ -209,11 +306,13 @@ function markAsPaid(userId) {
     body: JSON.stringify({ udhaar: 0, due_date: null })
   })
   .then(response => {
-    if (response.ok) {
-      window.location.reload();
-    } else {
-      alert('Error updating payment status');
+    if (!response.ok) {
+      throw new Error('Failed to update payment status');
     }
+    window.location.reload();
+  })
+  .catch(error => {
+    alert('Error: ' + error.message);
   });
 }
 
