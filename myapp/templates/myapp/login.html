@@ -1,0 +1,30 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}Login - Udhaar Management System{% endblock %}
+
+{% block content %}
+<div class="login-container">
+  <div class="login-box">
+    <h2>Login</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% if error %}
+      <div class="error-message">{{ error }}</div>
+      {% endif %}
+      <div class="input-group">
+        <input type="email" name="email" id="email" placeholder="Email" required />
+      </div>
+      <div class="input-group">
+        <input
+          type="password"
+          name="password"
+          id="password"
+          placeholder="Password"
+          required
+        />
+      </div>
+      <button type="submit" class="login-btn">Login</button>
+    </form>
+  </div>
+</div>
+{% endblock %} 
