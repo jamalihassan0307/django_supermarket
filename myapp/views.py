@@ -13,7 +13,14 @@ import json
 def is_admin(user):
     return user.role == 'admin'
 
+def is_entry_operator(user):
+    return user.role == 'entry_operator'
+
 def check_permissions(request, required_permissions):
+    # Entry operators have special permissions for products
+    if request.user.role == 'entry_operator' and 'myapp.add_product' in required_permissions:
+        return True
+    
     for perm in required_permissions:
         if not request.user.has_perm(perm):
             raise PermissionDenied
@@ -101,11 +108,12 @@ def dashboard(request):
 @login_required
 def products(request):
     print("Checking product permissions...")
-    can_add_product = request.user.has_perm('myapp.add_product')
+    # Entry operators can add and view products
+    can_add_product = request.user.has_perm('myapp.add_product') or request.user.role == 'entry_operator'
     can_change_product = request.user.has_perm('myapp.change_product')
     can_delete_product = request.user.has_perm('myapp.delete_product')
     
-    if not request.user.has_perm('myapp.view_product'):
+    if not (request.user.has_perm('myapp.view_product') or request.user.role == 'entry_operator'):
         return render(request, 'myapp/permission_denied.html')
         
     products = Product.objects.all()
@@ -166,12 +174,16 @@ def users(request):
 def product_list(request):
     try:
         if request.method == 'GET':
-            check_permissions(request, ['myapp.view_product'])
+            # Entry operators can view products
+            if not (request.user.has_perm('myapp.view_product') or request.user.role == 'entry_operator'):
+                raise PermissionDenied
             products = Product.objects.all()
             data = [{'id': p.id, 'name': p.name, 'price': str(p.price), 'stock': p.stock} for p in products]
             return JsonResponse(data, safe=False)
         elif request.method == 'POST':
-            check_permissions(request, ['myapp.add_product'])
+            # Entry operators can add products
+            if not (request.user.has_perm('myapp.add_product') or request.user.role == 'entry_operator'):
+                raise PermissionDenied
             data = json.loads(request.body)
             product = Product.objects.create(
                 name=data['name'],
@@ -180,7 +192,9 @@ def product_list(request):
             )
             return JsonResponse({'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock})
     except PermissionDenied:
-        return HttpResponseForbidden("Permission denied")
+        return render(request, 'myapp/permission_denied.html')
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 @login_required
 @csrf_exempt
@@ -188,11 +202,13 @@ def product_detail(request, pk):
     try:
         product = get_object_or_404(Product, pk=pk)
         if request.method == 'GET':
-            check_permissions(request, ['myapp.view_product'])
+            if not (request.user.has_perm('myapp.view_product') or request.user.role == 'entry_operator'):
+                raise PermissionDenied
             data = {'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock}
             return JsonResponse(data)
         elif request.method in ['PUT', 'PATCH']:
-            check_permissions(request, ['myapp.change_product'])
+            if not (request.user.has_perm('myapp.change_product') or request.user.role == 'entry_operator'):
+                raise PermissionDenied
             data = json.loads(request.body)
             if 'name' in data:
                 product.name = data['name']
@@ -203,7 +219,9 @@ def product_detail(request, pk):
             product.save()
             return JsonResponse({'id': product.id, 'name': product.name, 'price': str(product.price), 'stock': product.stock})
     except PermissionDenied:
-        return HttpResponseForbidden("Permission denied")
+        return render(request, 'myapp/permission_denied.html')
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 @login_required
 @csrf_exempt
