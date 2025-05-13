@@ -1,0 +1,172 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}Users - Udhaar Management{% endblock %}
+
+{% block content %}
+<section id="users" class="section">
+  <h2>Users Management</h2>
+  <div class="search-container">
+    <input
+      type="text"
+      id="userSearch"
+      class="search-input"
+      placeholder="Search users..."
+    />
+  </div>
+  <button onclick="showAddUserForm()" class="action-btn">Add New User</button>
+
+  <div id="usersList" class="list-container">
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Udhaar Amount</th>
+        <th>Due Date</th>
+        <th>Actions</th>
+      </tr>
+      {% for user in users %}
+      <tr {% if user.due_date and user.due_date < today %}class="overdue"{% endif %}>
+        <td>{{ user.username }}</td>
+        <td>PKR {{ user.udhaar }}</td>
+        <td>{{ user.due_date|default:"No due date" }}</td>
+        <td>
+          <button onclick="editUser({{ user.id }})" class="action-btn">Edit</button>
+          <button onclick="viewUserDetails({{ user.id }})" class="action-btn">View Details</button>
+          <button onclick="markAsPaid({{ user.id }})" class="action-btn paid-btn">Mark as Paid</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</section>
+
+<!-- User Modal -->
+<div id="userModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="hideUserModal()">&times;</span>
+    <h2 id="userModalTitle">Add New User</h2>
+    <form id="userForm" method="post" action="{% url 'user_list' %}">
+      {% csrf_token %}
+      <div class="input-group">
+        <label for="userName">User Name</label>
+        <input type="text" id="userName" name="username" required />
+      </div>
+      <div class="input-group">
+        <label for="userEmail">Email</label>
+        <input type="email" id="userEmail" name="email" required />
+      </div>
+      <div class="input-group">
+        <label for="userPassword">Password</label>
+        <input type="password" id="userPassword" name="password" required />
+      </div>
+      <div class="input-group">
+        <label for="userUdhaar">Initial Udhaar Amount</label>
+        <input type="number" id="userUdhaar" name="udhaar" min="0" step="0.01" value="0" required />
+      </div>
+      <div class="input-group">
+        <label for="userDueDate">Due Date (if any)</label>
+        <input type="date" id="userDueDate" name="due_date" />
+      </div>
+      <div class="button-group">
+        <button type="button" class="cancel-btn" onclick="hideUserModal()">Cancel</button>
+        <button type="submit" class="action-btn">Save User</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showAddUserForm() {
+  document.getElementById("userModalTitle").textContent = "Add New User";
+  document.getElementById("userForm").reset();
+  document.getElementById("userModal").classList.add("show");
+}
+
+function hideUserModal() {
+  document.getElementById("userModal").classList.remove("show");
+  document.getElementById("userForm").reset();
+}
+
+function editUser(userId) {
+  fetch(`/api/users/${userId}/`)
+    .then(response => response.json())
+    .then(user => {
+      document.getElementById("userModalTitle").textContent = "Edit User";
+      document.getElementById("userName").value = user.name;
+      document.getElementById("userUdhaar").value = user.udhaar;
+      document.getElementById("userDueDate").value = user.due_date || '';
+      document.getElementById("userForm").action = `/api/users/${userId}/`;
+      document.getElementById("userModal").classList.add("show");
+      
+      // Hide email and password fields for editing
+      document.getElementById("userEmail").parentElement.style.display = "none";
+      document.getElementById("userPassword").parentElement.style.display = "none";
+    });
+}
+
+function viewUserDetails(userId) {
+  fetch(`/api/users/${userId}/`)
+    .then(response => response.json())
+    .then(user => {
+      let details = `User Details:\n\n`;
+      details += `Name: ${user.name}\n`;
+      details += `Udhaar Amount: PKR ${user.udhaar}\n`;
+      details += `Due Date: ${user.due_date || 'No due date'}\n\n`;
+      
+      if (user.orders && user.orders.length > 0) {
+        details += `Order History:\n`;
+        user.orders.forEach(order => {
+          details += `\nOrder ID: ${order.id}\n`;
+          details += `Date: ${order.order_date}\n`;
+          details += `Amount: PKR ${order.total_amount}\n`;
+          details += `Status: ${order.status}\n`;
+        });
+      } else {
+        details += `No order history`;
+      }
+      
+      alert(details);
+    });
+}
+
+function markAsPaid(userId) {
+  if (!confirm('Are you sure you want to mark all orders as paid for this user?')) {
+    return;
+  }
+  
+  fetch(`/api/users/${userId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    },
+    body: JSON.stringify({ udhaar: 0, due_date: null })
+  })
+  .then(response => {
+    if (response.ok) {
+      window.location.reload();
+    } else {
+      alert('Error updating payment status');
+    }
+  });
+}
+
+document.getElementById("userSearch").addEventListener("keyup", function() {
+  const searchTerm = this.value.toLowerCase();
+  const rows = document.querySelectorAll("#usersList table tr:not(:first-child)");
+  
+  rows.forEach(row => {
+    const name = row.cells[0].textContent.toLowerCase();
+    const udhaar = row.cells[1].textContent.toLowerCase();
+    const dueDate = row.cells[2].textContent.toLowerCase();
+    
+    if (name.includes(searchTerm) || udhaar.includes(searchTerm) || dueDate.includes(searchTerm)) {
+      row.style.display = "";
+    } else {
+      row.style.display = "none";
+    }
+  });
+});
+</script>
+{% endblock %} 
