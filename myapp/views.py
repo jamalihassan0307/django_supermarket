@@ -372,16 +372,31 @@ def user_detail(request, pk):
         }
         return JsonResponse(data)
     elif request.method in ['PUT', 'PATCH']:
-        data = json.loads(request.body)
-        if 'udhaar' in data:
-            user.udhaar = data['udhaar']
-        if 'due_date' in data:
-            user.due_date = data['due_date']
-        user.save()
-        return JsonResponse({
-            'id': user.id,
-            'name': user.username,
-            'udhaar': str(user.udhaar),
-            'due_date': user.due_date.strftime('%Y-%m-%d') if user.due_date else None
-        })
+        try:
+            data = json.loads(request.body)
+            
+            # Update username if provided
+            if 'username' in data:
+                user.username = data['username']
+            
+            # Update udhaar if provided
+            if 'udhaar' in data:
+                user.udhaar = data['udhaar']
+            
+            # Update due_date if provided
+            if 'due_date' in data:
+                try:
+                    user.due_date = timezone.datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data['due_date'] else None
+                except ValueError:
+                    return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+            
+            user.save()
+            return JsonResponse({
+                'id': user.id,
+                'name': user.username,
+                'udhaar': str(user.udhaar),
+                'due_date': user.due_date.strftime('%Y-%m-%d') if user.due_date else None
+            })
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request'}, status=400)

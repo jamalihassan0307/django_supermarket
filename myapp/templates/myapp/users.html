@@ -80,6 +80,15 @@
 function showAddUserForm() {
   document.getElementById("userModalTitle").textContent = "Add New User";
   document.getElementById("userForm").reset();
+  
+  // Reset the form's data-edit-url attribute
+  const form = document.getElementById("userForm");
+  form.removeAttribute("data-edit-url");
+  
+  // Show email and password fields
+  document.getElementById("userEmail").parentElement.style.display = "block";
+  document.getElementById("userPassword").parentElement.style.display = "block";
+  
   document.getElementById("userModal").classList.add("show");
 }
 
@@ -107,8 +116,19 @@ function handleFormSubmit(event) {
     due_date: dueDate
   };
 
-  fetch('/api/users/', {
-    method: 'POST',
+  // Check if we're editing (form has action attribute) or creating new user
+  const form = document.getElementById("userForm");
+  const url = form.getAttribute("data-edit-url") || '/api/users/';
+  const method = form.getAttribute("data-edit-url") ? 'PATCH' : 'POST';
+
+  // Remove password from data if editing
+  if (method === 'PATCH') {
+    delete formData.password;
+    delete formData.email;
+  }
+
+  fetch(url, {
+    method: method,
     headers: {
       'Content-Type': 'application/json',
       'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
@@ -120,7 +140,7 @@ function handleFormSubmit(event) {
       window.location.reload();
     } else {
       return response.json().then(data => {
-        throw new Error(data.error || 'Failed to create user');
+        throw new Error(data.error || 'Failed to save user');
       });
     }
   })
@@ -137,7 +157,11 @@ function editUser(userId) {
       document.getElementById("userName").value = user.name;
       document.getElementById("userUdhaar").value = user.udhaar;
       document.getElementById("userDueDate").value = user.due_date || '';
-      document.getElementById("userForm").action = `/api/users/${userId}/`;
+      
+      // Set the form's data-edit-url attribute instead of action
+      const form = document.getElementById("userForm");
+      form.setAttribute("data-edit-url", `/api/users/${userId}/`);
+      
       document.getElementById("userModal").classList.add("show");
       
       // Hide email and password fields for editing
