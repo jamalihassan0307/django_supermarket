@@ -13,7 +13,9 @@
       placeholder="Search orders by user or status..."
     />
   </div>
+  {% if can_add_order %}
   <button onclick="showNewOrderForm()" class="action-btn">Create New Order</button>
+  {% endif %}
 
   <div id="ordersList" class="list-container">
     <table>
@@ -34,6 +36,9 @@
         <td>{{ order.order_date }}</td>
         <td>
           <button onclick="viewOrderDetails({{ order.id }})" class="action-btn">View Details</button>
+          {% if can_change_order %}
+          <button onclick="updateOrderStatus({{ order.id }})" class="action-btn">Update Status</button>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
@@ -46,12 +51,12 @@
   <div class="modal-content">
     <span class="close" onclick="hideOrderModal()">&times;</span>
     <h2 id="orderModalTitle">Create New Order</h2>
-    <form id="orderForm" method="post" action="{% url 'order_list' %}">
+    <form id="orderForm" onsubmit="handleOrderSubmit(event)">
       {% csrf_token %}
       <div class="input-group">
         <label for="orderUser">Select User</label>
-        <select id="orderUser" name="user" required {% if not user.is_admin %}disabled{% endif %}>
-          {% if user.is_admin %}
+        <select id="orderUser" name="user" required {% if not is_admin_or_entry %}disabled{% endif %}>
+          {% if is_admin_or_entry %}
             <option value="">Select User</option>
             {% for u in users %}
             <option value="{{ u.id }}">{{ u.username }}</option>
@@ -67,18 +72,23 @@
           <select class="product-select" name="products[]" required>
             <option value="">Select Product</option>
             {% for product in products %}
-            {% if product.stock > 0 %}
-            <option value="{{ product.id }}" data-stock="{{ product.stock }}">
-              {{ product.name }} (Stock: {{ product.stock }})
+            <option value="{{ product.id }}" data-price="{{ product.price }}" data-stock="{{ product.stock }}">
+              {{ product.name }} (Price: PKR {{ product.price }}, Stock: {{ product.stock }})
             </option>
-            {% endif %}
             {% endfor %}
           </select>
           <input type="number" class="quantity-input" name="quantities[]" placeholder="Quantity" min="1" required />
+          <span class="product-total">Total: PKR 0</span>
           <button type="button" class="cancel-btn" onclick="removeProductField(this)">Remove</button>
         </div>
       </div>
       <button type="button" class="action-btn" onclick="addProductField()">Add Another Product</button>
+      
+      <div class="order-summary">
+        <h3>Order Summary</h3>
+        <p>Total Amount: PKR <span id="orderTotal">0</span></p>
+      </div>
+
       <div class="input-group">
         <label for="orderStatus">Payment Status</label>
         <select id="orderStatus" name="status" required>
@@ -95,12 +105,50 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+.order-product {
+  border: 1px solid #ddd;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  background: #f8f9fa;
+}
+
+.product-total {
+  display: inline-block;
+  margin-left: 1rem;
+  font-weight: bold;
+}
+
+.order-summary {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.order-summary h3 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.order-summary p {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 function showNewOrderForm() {
   document.getElementById("orderModalTitle").textContent = "Create New Order";
   document.getElementById("orderForm").reset();
   document.getElementById("orderModal").classList.add("show");
+  updateOrderTotal();
 }
 
 function hideOrderModal() {
@@ -117,40 +165,180 @@ function resetOrderProducts() {
 
 function addProductField() {
   const orderProducts = document.getElementById("orderProducts");
-  const productDiv = document.createElement("div");
-  productDiv.className = "order-product input-group";
-  
   const template = document.querySelector(".order-product").cloneNode(true);
   template.querySelector(".product-select").value = "";
   template.querySelector(".quantity-input").value = "";
-  
+  template.querySelector(".product-total").textContent = "Total: PKR 0";
   orderProducts.appendChild(template);
+  
+  // Add event listeners to new fields
+  const newSelect = template.querySelector(".product-select");
+  const newQuantity = template.querySelector(".quantity-input");
+  newSelect.addEventListener("change", updateProductTotal);
+  newQuantity.addEventListener("input", updateProductTotal);
 }
 
 function removeProductField(button) {
   if (document.querySelectorAll(".order-product").length > 1) {
-    button.parentElement.remove();
+    button.closest(".order-product").remove();
+    updateOrderTotal();
   }
+}
+
+function updateProductTotal(event) {
+  const container = event.target.closest(".order-product");
+  const select = container.querySelector(".product-select");
+  const quantity = container.querySelector(".quantity-input");
+  const totalSpan = container.querySelector(".product-total");
+  
+  if (select.value && quantity.value) {
+    const option = select.options[select.selectedIndex];
+    const price = parseFloat(option.getAttribute("data-price"));
+    const stock = parseInt(option.getAttribute("data-stock"));
+    const qty = parseInt(quantity.value);
+    
+    if (qty > stock) {
+      alert(`Maximum available stock is ${stock}`);
+      quantity.value = stock;
+      return updateProductTotal(event);
+    }
+    
+    const total = price * qty;
+    totalSpan.textContent = `Total: PKR ${total.toFixed(2)}`;
+  } else {
+    totalSpan.textContent = "Total: PKR 0";
+  }
+  
+  updateOrderTotal();
+}
+
+function updateOrderTotal() {
+  let total = 0;
+  document.querySelectorAll(".order-product").forEach(container => {
+    const select = container.querySelector(".product-select");
+    const quantity = container.querySelector(".quantity-input");
+    
+    if (select.value && quantity.value) {
+      const price = parseFloat(select.options[select.selectedIndex].getAttribute("data-price"));
+      const qty = parseInt(quantity.value);
+      total += price * qty;
+    }
+  });
+  
+  document.getElementById("orderTotal").textContent = total.toFixed(2);
+}
+
+function handleOrderSubmit(event) {
+  event.preventDefault();
+  
+  const formData = {
+    user_id: document.getElementById("orderUser").value,
+    status: document.getElementById("orderStatus").value,
+    items: [],
+    total_amount: parseFloat(document.getElementById("orderTotal").textContent)
+  };
+  
+  // Collect items data
+  document.querySelectorAll(".order-product").forEach(container => {
+    const select = container.querySelector(".product-select");
+    const quantity = container.querySelector(".quantity-input");
+    
+    if (select.value && quantity.value) {
+      const price = parseFloat(select.options[select.selectedIndex].getAttribute("data-price"));
+      formData.items.push({
+        product_id: select.value,
+        quantity: parseInt(quantity.value),
+        price: price
+      });
+    }
+  });
+  
+  // Validate form
+  if (!formData.user_id) {
+    alert("Please select a user");
+    return;
+  }
+  
+  if (formData.items.length === 0) {
+    alert("Please add at least one product");
+    return;
+  }
+  
+  fetch('/api/orders/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    },
+    body: JSON.stringify(formData)
+  })
+  .then(response => {
+    if (!response.ok) {
+      return response.json().then(data => {
+        throw new Error(data.error || 'Failed to create order');
+      });
+    }
+    window.location.reload();
+  })
+  .catch(error => {
+    alert('Error: ' + error.message);
+  });
 }
 
 function viewOrderDetails(orderId) {
   fetch(`/api/orders/${orderId}/`)
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to fetch order details');
+      }
+      return response.json();
+    })
     .then(order => {
       let details = `Order Details:\n\n`;
       details += `Order ID: ${order.id}\n`;
-      details += `Date: ${order.order_date}\n`;
-      details += `Status: ${order.status}\n\n`;
+      details += `User: ${order.user}\n`;
+      details += `Total Amount: PKR ${order.total_amount}\n`;
+      details += `Status: ${order.status}\n`;
+      details += `Date: ${order.order_date}\n\n`;
       
       details += `Products:\n`;
       order.items.forEach(item => {
-        details += `${item.product} x ${item.quantity} = PKR ${item.price}\n`;
+        details += `- ${item.product} x ${item.quantity} = PKR ${item.price}\n`;
       });
       
-      details += `\nTotal Amount: PKR ${order.total_amount}`;
-      
       alert(details);
+    })
+    .catch(error => {
+      alert('Error: ' + error.message);
     });
+}
+
+function updateOrderStatus(orderId) {
+  const newStatus = prompt("Enter new status (Paid/Unpaid):", "Paid");
+  if (!newStatus) return;
+  
+  if (newStatus.toLowerCase() !== 'paid' && newStatus.toLowerCase() !== 'unpaid') {
+    alert("Status must be either 'Paid' or 'Unpaid'");
+    return;
+  }
+  
+  fetch(`/api/orders/${orderId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    },
+    body: JSON.stringify({ status: newStatus })
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Failed to update order status');
+    }
+    window.location.reload();
+  })
+  .catch(error => {
+    alert('Error: ' + error.message);
+  });
 }
 
 document.getElementById("orderSearch").addEventListener("keyup", function() {
@@ -170,21 +358,10 @@ document.getElementById("orderSearch").addEventListener("keyup", function() {
   });
 });
 
-// Add event listeners to quantity inputs
-document.addEventListener('change', function(e) {
-  if (e.target.classList.contains('quantity-input')) {
-    const select = e.target.parentElement.querySelector('.product-select');
-    const stock = parseInt(select.options[select.selectedIndex].getAttribute('data-stock'));
-    const quantity = parseInt(e.target.value);
-    
-    if (quantity > stock) {
-      alert(`Maximum available stock is ${stock}`);
-      e.target.value = stock;
-    } else if (quantity < 1) {
-      alert('Minimum quantity is 1');
-      e.target.value = 1;
-    }
-  }
+// Add event listeners to initial product fields
+document.querySelectorAll(".product-select, .quantity-input").forEach(element => {
+  element.addEventListener("change", updateProductTotal);
+  element.addEventListener("input", updateProductTotal);
 });
 </script>
 {% endblock %} 

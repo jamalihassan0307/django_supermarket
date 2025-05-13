@@ -136,20 +136,26 @@ def orders(request):
     if not (request.user.has_perm('myapp.view_order') or request.user.role == 'entry_operator'):
         return render(request, 'myapp/permission_denied.html')
         
+    # Get orders based on role
     if request.user.role in ['admin', 'entry_operator']:
         orders = Order.objects.all()
     else:
         orders = Order.objects.filter(user=request.user)
     
-    # Get all users for order creation
-    users = User.objects.all() if request.user.role in ['admin', 'entry_operator'] else []
+    # Get all regular users (role='user') for order creation
+    users = User.objects.filter(role='user') if request.user.role in ['admin', 'entry_operator'] else []
+    
+    # Get all available products
+    products = Product.objects.filter(stock__gt=0)
     
     context = {
         'orders': orders,
         'users': users,
+        'products': products,
         'can_add_order': can_add_order,
         'can_change_order': can_change_order,
         'can_delete_order': can_delete_order,
+        'is_admin_or_entry': request.user.role in ['admin', 'entry_operator']
     }
     return render(request, 'myapp/orders.html', context)
 
