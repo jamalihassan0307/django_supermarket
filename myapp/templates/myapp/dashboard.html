@@ -1,0 +1,102 @@
+{% extends 'myapp/base.html' %}
+
+{% block title %}Dashboard - Udhaar Management{% endblock %}
+
+{% block content %}
+<section id="overview" class="section">
+  <h2>Dashboard Overview</h2>
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div class="stat-info">
+        <h3>Total Revenue</h3>
+        <p>PKR {{ total_revenue }}</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💳</div>
+      <div class="stat-info">
+        <h3>Total Udhaar</h3>
+        <p>PKR {{ total_udhaar }}</p>
+      </div>
+    </div>
+    {% if user.role == 'admin' %}
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-info">
+        <h3>Total Users</h3>
+        <p>{{ total_users }}</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-info">
+        <h3>Unpaid Users</h3>
+        <p>{{ unpaid_users }}</p>
+      </div>
+    </div>
+    {% endif %}
+    <div class="stat-card">
+      <div class="stat-icon">📦</div>
+      <div class="stat-info">
+        <h3>Total Products</h3>
+        <p>{{ total_products }}</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-info">
+        <h3>Total Orders</h3>
+        <p>{{ total_orders }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="recent-activity">
+    <div class="today-udhaar">
+      <h3>Today's Udhaar</h3>
+      <div class="activity-list">
+        {% if today_orders %}
+          {% for order in today_orders %}
+          <div class="activity-item">
+            <div class="activity-info">
+              <h4>{{ order.user.username }}</h4>
+              <p>{{ order.items.count }} items</p>
+            </div>
+            <span class="activity-amount">PKR {{ order.total_amount }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="activity-item">No udhaar entries today</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="due-payments">
+      <h3>Due Payments</h3>
+      <div class="activity-list">
+        {% if due_users %}
+          {% for user in due_users %}
+          <div class="activity-item {% if user.due_date < today %}overdue{% endif %}">
+            <div class="activity-info">
+              <h4>{{ user.username }}</h4>
+              <p class="due-date">Due: {{ user.due_date }}</p>
+            </div>
+            <span class="activity-amount">PKR {{ user.udhaar }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="activity-item">No due payments</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Add any dashboard-specific JavaScript here
+  });
+</script>
+{% endblock %} 
