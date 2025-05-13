@@ -128,20 +128,25 @@ def products(request):
 @login_required
 def orders(request):
     print("Checking order permissions...")
-    can_add_order = request.user.has_perm('myapp.add_order')
-    can_change_order = request.user.has_perm('myapp.change_order')
+    # Entry operators can add and manage orders
+    can_add_order = request.user.has_perm('myapp.add_order') or request.user.role == 'entry_operator'
+    can_change_order = request.user.has_perm('myapp.change_order') or request.user.role == 'entry_operator'
     can_delete_order = request.user.has_perm('myapp.delete_order')
     
-    if not request.user.has_perm('myapp.view_order'):
+    if not (request.user.has_perm('myapp.view_order') or request.user.role == 'entry_operator'):
         return render(request, 'myapp/permission_denied.html')
         
-    if request.user.role == 'admin':
+    if request.user.role in ['admin', 'entry_operator']:
         orders = Order.objects.all()
     else:
         orders = Order.objects.filter(user=request.user)
     
+    # Get all users for order creation
+    users = User.objects.all() if request.user.role in ['admin', 'entry_operator'] else []
+    
     context = {
         'orders': orders,
+        'users': users,
         'can_add_order': can_add_order,
         'can_change_order': can_change_order,
         'can_delete_order': can_delete_order,
@@ -149,16 +154,16 @@ def orders(request):
     return render(request, 'myapp/orders.html', context)
 
 @login_required
-@user_passes_test(is_admin)
 def users(request):
     print("Checking user permissions...")
-    can_add_user = request.user.has_perm('myapp.add_user')
-    can_change_user = request.user.has_perm('myapp.change_user')
-    can_delete_user = request.user.has_perm('myapp.delete_user')
-    
-    if not request.user.has_perm('myapp.view_user'):
+    # Allow both admin and entry operators to access users
+    if not (request.user.role == 'admin' or request.user.role == 'entry_operator'):
         return render(request, 'myapp/permission_denied.html')
-        
+    
+    can_add_user = True  # Both admin and entry operators can add users
+    can_change_user = request.user.role == 'admin'  # Only admin can modify users
+    can_delete_user = request.user.role == 'admin'  # Only admin can delete users
+    
     users = User.objects.filter(udhaar__gt=0)
     context = {
         'users': users,
@@ -227,7 +232,7 @@ def product_detail(request, pk):
 @csrf_exempt
 def order_list(request):
     if request.method == 'GET':
-        if request.user.role == 'admin':
+        if request.user.role in ['admin', 'entry_operator']:
             orders = Order.objects.all()
         else:
             orders = Order.objects.filter(user=request.user)
@@ -240,21 +245,34 @@ def order_list(request):
         } for o in orders]
         return JsonResponse(data, safe=False)
     elif request.method == 'POST':
-        data = json.loads(request.body)
-        order = Order.objects.create(
-            user=request.user,
-            total_amount=data['total_amount'],
-            status=data['status'],
-            order_date=timezone.now().date()
-        )
-        for item in data['items']:
-            OrderItem.objects.create(
-                order=order,
-                product_id=item['product_id'],
-                quantity=item['quantity'],
-                price=item['price']
+        if not (request.user.has_perm('myapp.add_order') or request.user.role == 'entry_operator'):
+            return render(request, 'myapp/permission_denied.html')
+            
+        try:
+            data = json.loads(request.body)
+            # If entry operator is creating order for another user
+            if request.user.role == 'entry_operator' and 'user_id' in data:
+                user = User.objects.get(id=data['user_id'])
+            else:
+                user = request.user
+                
+            order = Order.objects.create(
+                user=user,
+                total_amount=data['total_amount'],
+                status=data['status'],
+                order_date=timezone.now().date()
             )
-        return JsonResponse({'id': order.id})
+            
+            for item in data['items']:
+                OrderItem.objects.create(
+                    order=order,
+                    product_id=item['product_id'],
+                    quantity=item['quantity'],
+                    price=item['price']
+                )
+            return JsonResponse({'id': order.id})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @login_required
@@ -281,9 +299,12 @@ def order_detail(request, pk):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @login_required
-@user_passes_test(is_admin)
 @csrf_exempt
 def user_list(request):
+    # Allow both admin and entry operators to access users
+    if not (request.user.role == 'admin' or request.user.role == 'entry_operator'):
+        return render(request, 'myapp/permission_denied.html')
+
     if request.method == 'GET':
         users = User.objects.filter(udhaar__gt=0)
         data = [{
@@ -293,12 +314,40 @@ def user_list(request):
             'due_date': u.due_date.strftime('%Y-%m-%d') if u.due_date else None
         } for u in users]
         return JsonResponse(data, safe=False)
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            # Create new user with basic role
+            user = User.objects.create_user(
+                username=data['username'],
+                email=data.get('email', ''),
+                password=data['password'],
+                role='user'
+            )
+            user.first_name = data.get('first_name', '')
+            user.last_name = data.get('last_name', '')
+            user.udhaar = data.get('udhaar', 0)
+            if 'due_date' in data:
+                user.due_date = data['due_date']
+            user.save()
+            
+            return JsonResponse({
+                'id': user.id,
+                'name': user.username,
+                'udhaar': str(user.udhaar),
+                'due_date': user.due_date.strftime('%Y-%m-%d') if user.due_date else None
+            })
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @login_required
-@user_passes_test(is_admin)
 @csrf_exempt
 def user_detail(request, pk):
+    # Allow both admin and entry operators to access user details
+    if not (request.user.role == 'admin' or request.user.role == 'entry_operator'):
+        return render(request, 'myapp/permission_denied.html')
+
     user = get_object_or_404(User, pk=pk)
     if request.method == 'GET':
         data = {
@@ -321,5 +370,10 @@ def user_detail(request, pk):
         if 'due_date' in data:
             user.due_date = data['due_date']
         user.save()
-        return JsonResponse({'id': user.id, 'name': user.username, 'udhaar': str(user.udhaar), 'due_date': user.due_date.strftime('%Y-%m-%d') if user.due_date else None})
+        return JsonResponse({
+            'id': user.id,
+            'name': user.username,
+            'udhaar': str(user.udhaar),
+            'due_date': user.due_date.strftime('%Y-%m-%d') if user.due_date else None
+        })
     return JsonResponse({'error': 'Invalid request'}, status=400)
