@@ -23,7 +23,13 @@
         {% if perms.myapp.view_user %}
         <a href="{% url 'users' %}" class="nav-btn">Users</a>
         {% endif %}
-        <a href="{% url 'logout' %}" class="nav-btn logout">Logout</a>
+        <div class="user-menu">
+          <span class="username">{{ user.get_full_name|default:user.username }}</span>
+          <div class="dropdown-content">
+            <a href="{% url 'profile' %}" class="nav-btn">My Profile</a>
+            <a href="{% url 'logout' %}" class="nav-btn logout">Logout</a>
+          </div>
+        </div>
       </div>
     </nav>
     {% endif %}
@@ -34,4 +40,58 @@
 
     {% block extra_js %}{% endblock %}
   </body>
-</html> 
+</html>
+
+{% block extra_css %}
+<style>
+.user-menu {
+  position: relative;
+  display: inline-block;
+  margin-left: 1rem;
+}
+
+.username {
+  color: white;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.username:after {
+  content: '▼';
+  font-size: 0.8em;
+  margin-left: 0.5rem;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  background-color: white;
+  min-width: 160px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  border-radius: 5px;
+  z-index: 1;
+}
+
+.dropdown-content a {
+  color: #333;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.dropdown-content a:hover {
+  background-color: #f8f9fa;
+}
+
+.user-menu:hover .dropdown-content {
+  display: block;
+}
+
+.user-menu:hover .username {
+  opacity: 0.8;
+}
+</style>
+{% endblock %} 
