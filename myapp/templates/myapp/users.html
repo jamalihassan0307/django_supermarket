@@ -44,7 +44,7 @@
   <div class="modal-content">
     <span class="close" onclick="hideUserModal()">&times;</span>
     <h2 id="userModalTitle">Add New User</h2>
-    <form id="userForm" method="post" action="{% url 'user_list' %}">
+    <form id="userForm" onsubmit="handleFormSubmit(event)">
       {% csrf_token %}
       <div class="input-group">
         <label for="userName">User Name</label>
@@ -86,6 +86,39 @@ function showAddUserForm() {
 function hideUserModal() {
   document.getElementById("userModal").classList.remove("show");
   document.getElementById("userForm").reset();
+}
+
+function handleFormSubmit(event) {
+  event.preventDefault();
+  
+  const formData = {
+    username: document.getElementById("userName").value,
+    email: document.getElementById("userEmail").value,
+    password: document.getElementById("userPassword").value,
+    udhaar: parseFloat(document.getElementById("userUdhaar").value) || 0,
+    due_date: document.getElementById("userDueDate").value || null
+  };
+
+  fetch('/api/users/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    },
+    body: JSON.stringify(formData)
+  })
+  .then(response => {
+    if (response.ok) {
+      window.location.reload();
+    } else {
+      return response.json().then(data => {
+        throw new Error(data.error || 'Failed to create user');
+      });
+    }
+  })
+  .catch(error => {
+    alert('Error: ' + error.message);
+  });
 }
 
 function editUser(userId) {
