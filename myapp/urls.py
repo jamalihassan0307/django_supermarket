@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path , include
 from . import views
 from django.contrib.auth import views as auth_views
 
@@ -19,4 +19,6 @@ urlpatterns = [
     path('api/orders/<int:pk>/', views.order_detail, name='order_detail'),
     path('api/users/', views.user_list, name='user_list'),
     path('api/users/<int:pk>/', views.user_detail, name='user_detail'),
+     path('social-auth/', include('social_django.urls', namespace='social')),
+
 ]

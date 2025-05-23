@@ -32,6 +32,8 @@ def home(request):
     return redirect('login')
 
 def login_view(request):
+    if request.user.is_authenticated:
+        return render(request, 'myapp/dashboard.html')
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
