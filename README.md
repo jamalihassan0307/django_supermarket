@@ -2,11 +2,15 @@
 
 A Django-based supermarket management system with role-based access control, designed to handle product inventory, orders, and customer credit (udhaar) management.
 
+## Live Demo
+Visit the live application at: [https://abidmushtaq.pythonanywhere.com/](https://abidmushtaq.pythonanywhere.com/)
+
 ## Features
 
 ### 1. User Authentication & Authorization
 - Role-based access control with 5 distinct user types
 - Secure login system with email and password
+- Google OAuth2 integration for social login
 - Permission-based feature access
 - Custom user model with udhaar tracking
 
@@ -49,6 +53,7 @@ A Django-based supermarket management system with role-based access control, des
 - Secure password handling
 - Role-based UI adaptation
 - Permission denied handling
+- Social authentication security
 
 ## User Roles & Access Levels
 
@@ -110,6 +115,7 @@ A Django-based supermarket management system with role-based access control, des
 - Modal forms for actions
 - Permission-based UI elements
 - Error handling and feedback
+- Social login integration
 
 ### Backend
 - Django 5.1.7
@@ -119,6 +125,7 @@ A Django-based supermarket management system with role-based access control, des
 - Secure authentication
 - Database migrations
 - Error logging
+- Social authentication
 
 ## Database Schema
 
@@ -150,49 +157,27 @@ A Django-based supermarket management system with role-based access control, des
    - Price
    - Created timestamp
 
-## Suggested Improvements
+## Deployment
 
-1. Dashboard Enhancements
-   - Add graphical statistics
-   - Daily/weekly/monthly reports
-   - Export functionality for reports
-   - Real-time notifications
-
-2. Product Management
-   - Barcode scanning support
-   - Low stock alerts
-   - Product categories
-   - Bulk import/export
-   - Price history tracking
-
-3. Order Management
-   - Print invoices
-   - Email notifications
-   - Order status workflow
-   - Bulk order processing
-   - Return handling
-
-4. User Management
-   - SMS notifications for due payments
-   - Payment reminders
-   - Credit limit management
-   - Customer loyalty system
-
-5. Security Enhancements
-   - Two-factor authentication
-   - Activity logging
-   - IP-based access control
-   - Session management
-   - Automated backups
-
-## Installation & Setup
-
+### Local Development Setup
 1. Clone the repository
 2. Create virtual environment
 3. Install dependencies: `pip install -r requirements.txt`
 4. Run migrations: `python manage.py migrate`
 5. Create superuser: `python manage.py createsuperuser`
 6. Run server: `python manage.py runserver`
+
+### PythonAnywhere Deployment
+1. Create a PythonAnywhere account
+2. Upload project files to PythonAnywhere
+3. Set up virtual environment
+4. Install requirements
+5. Configure WSGI file
+6. Set up static files
+7. Configure environment variables
+8. Run migrations
+9. Create superuser
+10. Start the web app
 
 ## Default User Credentials
 
@@ -231,6 +216,8 @@ Product Manager:
 4. Monitor user activities
 5. Regular backups
 6. Update dependencies
+7. Secure social authentication
+8. Protect API endpoints
 
 ## Support
 
