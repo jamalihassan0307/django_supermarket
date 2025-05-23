@@ -144,8 +144,8 @@ LOGOUT_REDIRECT_URL = 'login'
 
 
 
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = 'your-client-id'
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'your-client-secret'
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '970472931071-eoakrfq4r54062ksrqbee90l29qo41ja.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
