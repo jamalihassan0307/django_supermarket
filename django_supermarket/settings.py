@@ -175,5 +175,13 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
+    'myapp.pipeline.save_google_user',
 )
+
+# Add these settings for Google OAuth2
+SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = [
+    ('email', 'email'),
+    ('name', 'name'),
+    ('picture', 'picture'),
+]
 
