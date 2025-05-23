@@ -24,9 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-5yo8n!+i85d_e3_6lv)7#8szw2%2a@00y6dj1#0wrtgbv#r8zf'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['abidmushtaq.pythonanywhere.com', 'localhost', '127.0.0.1', 'www.abidmushtaq.pythonanywhere.com']
 
 # Custom User Model
 AUTH_USER_MODEL = 'myapp.User'
