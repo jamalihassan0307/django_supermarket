@@ -5,7 +5,7 @@ from django.contrib.auth import views as auth_views
 urlpatterns = [
     path('', views.home, name='home'),
     path('login/', views.login_view, name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('profile/', views.profile, name='profile'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('products/', views.products, name='products'),
@@ -19,6 +19,5 @@ urlpatterns = [
     path('api/orders/<int:pk>/', views.order_detail, name='order_detail'),
     path('api/users/', views.user_list, name='user_list'),
     path('api/users/<int:pk>/', views.user_detail, name='user_detail'),
-     path('social-auth/', include('social_django.urls', namespace='social')),
-
+    path('social-auth/', include('social_django.urls', namespace='social')),
 ]
