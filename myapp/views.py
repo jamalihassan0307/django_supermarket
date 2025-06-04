@@ -273,12 +273,18 @@ def order_list(request):
             
         try:
             data = json.loads(request.body)
-            # If entry operator is creating order for another user
-            if request.user.role == 'entry_operator' and 'user_id' in data:
-                user = User.objects.get(id=data['user_id'])
-            else:
-                user = request.user
+            
+            # Get the user based on the selected user_id
+            user_id = data.get('user_id')
+            if not user_id:
+                return JsonResponse({'error': 'User ID is required'}, status=400)
                 
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return JsonResponse({'error': 'User not found'}, status=404)
+            
+            # Create the order
             order = Order.objects.create(
                 user=user,
                 total_amount=data['total_amount'],
@@ -286,14 +292,24 @@ def order_list(request):
                 order_date=timezone.now().date()
             )
             
+            # Create order items
             for item in data['items']:
+                product = Product.objects.get(id=item['product_id'])
                 OrderItem.objects.create(
                     order=order,
-                    product_id=item['product_id'],
+                    product=product,
                     quantity=item['quantity'],
                     price=item['price']
                 )
-            return JsonResponse({'id': order.id})
+                
+                # Update product stock
+                product.stock -= item['quantity']
+                product.save()
+            
+            return JsonResponse({
+                'id': order.id,
+                'message': 'Order created successfully'
+            })
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Invalid request'}, status=400)

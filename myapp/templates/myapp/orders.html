@@ -55,7 +55,7 @@
       {% csrf_token %}
       <div class="input-group">
         <label for="orderUser">Select User</label>
-        <select id="orderUser" name="user" required {% if not is_admin_or_entry %}disabled{% endif %}>
+        <select id="orderUser" name="user_id" required {% if not is_admin_or_entry %}disabled{% endif %}>
           {% if is_admin_or_entry %}
             <option value="">Select User</option>
             {% for u in users %}
@@ -245,9 +245,17 @@ function handleOrderSubmit(event) {
     
     if (select.value && quantity.value) {
       const price = parseFloat(select.options[select.selectedIndex].getAttribute("data-price"));
+      const stock = parseInt(select.options[select.selectedIndex].getAttribute("data-stock"));
+      const qty = parseInt(quantity.value);
+      
+      if (qty > stock) {
+        alert(`Maximum available stock is ${stock}`);
+        return;
+      }
+      
       formData.items.push({
         product_id: select.value,
-        quantity: parseInt(quantity.value),
+        quantity: qty,
         price: price
       });
     }
@@ -278,6 +286,10 @@ function handleOrderSubmit(event) {
         throw new Error(data.error || 'Failed to create order');
       });
     }
+    return response.json();
+  })
+  .then(data => {
+    alert('Order created successfully!');
     window.location.reload();
   })
   .catch(error => {

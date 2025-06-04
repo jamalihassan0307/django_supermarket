@@ -78,13 +78,13 @@
         <label for="userName">User Name</label>
         <input type="text" id="userName" name="username" required />
       </div>
-      <div class="input-group">
+      <div class="input-group" id="emailGroup">
         <label for="userEmail">Email</label>
-        <input type="email" id="userEmail" name="email" required />
+        <input type="email" id="userEmail" name="email" />
       </div>
-      <div class="input-group">
+      <div class="input-group" id="passwordGroup">
         <label for="userPassword">Password</label>
-        <input type="password" id="userPassword" name="password" required />
+        <input type="password" id="userPassword" name="password" />
       </div>
       <div class="input-group">
         <label for="userUdhaar">Udhaar Amount</label>
@@ -172,9 +172,13 @@ function showAddUserForm() {
   const form = document.getElementById("userForm");
   form.removeAttribute("data-edit-url");
   
-  // Show email and password fields
-  document.getElementById("userEmail").parentElement.style.display = "block";
-  document.getElementById("userPassword").parentElement.style.display = "block";
+  // Show email and password fields and make them required
+  const emailGroup = document.getElementById("emailGroup");
+  const passwordGroup = document.getElementById("passwordGroup");
+  emailGroup.style.display = "block";
+  passwordGroup.style.display = "block";
+  document.getElementById("userEmail").required = true;
+  document.getElementById("userPassword").required = true;
   
   document.getElementById("userModal").classList.add("show");
 }
@@ -195,24 +199,24 @@ function handleFormSubmit(event) {
     dueDate = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
   }
   
-  const formData = {
-    username: document.getElementById("userName").value,
-    email: document.getElementById("userEmail").value,
-    password: document.getElementById("userPassword").value,
-    udhaar: parseFloat(document.getElementById("userUdhaar").value) || 0,
-    due_date: dueDate
-  };
-
   // Check if we're editing (form has data-edit-url attribute) or creating new user
   const form = document.getElementById("userForm");
   const url = form.getAttribute("data-edit-url") || '/api/users/';
   const method = form.getAttribute("data-edit-url") ? 'PATCH' : 'POST';
 
-  // Remove password and email from data if editing
-  if (method === 'PATCH') {
-    delete formData.password;
-    delete formData.email;
+  const formData = {
+    username: document.getElementById("userName").value,
+    udhaar: parseFloat(document.getElementById("userUdhaar").value) || 0,
+    due_date: dueDate
+  };
+
+  // Add email and password only for new users
+  if (method === 'POST') {
+    formData.email = document.getElementById("userEmail").value;
+    formData.password = document.getElementById("userPassword").value;
   }
+
+  console.log('Submitting form:', { url, method, formData }); // Debug log
 
   fetch(url, {
     method: method,
@@ -223,19 +227,27 @@ function handleFormSubmit(event) {
     body: JSON.stringify(formData)
   })
   .then(response => {
+    console.log('Response status:', response.status); // Debug log
     if (!response.ok) {
       return response.json().then(data => {
         throw new Error(data.error || 'Failed to save user');
       });
     }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Success:', data); // Debug log
+    alert(method === 'POST' ? 'User created successfully!' : 'User updated successfully!');
     window.location.reload();
   })
   .catch(error => {
+    console.error('Error:', error); // Debug log
     alert('Error: ' + error.message);
   });
 }
 
 function editUser(userId) {
+  console.log('Editing user:', userId); // Debug log
   fetch(`/api/users/${userId}/`)
     .then(response => {
       if (!response.ok) {
@@ -244,6 +256,7 @@ function editUser(userId) {
       return response.json();
     })
     .then(user => {
+      console.log('User data:', user); // Debug log
       document.getElementById("userModalTitle").textContent = "Edit User";
       document.getElementById("userName").value = user.name;
       document.getElementById("userUdhaar").value = user.udhaar;
@@ -253,13 +266,18 @@ function editUser(userId) {
       const form = document.getElementById("userForm");
       form.setAttribute("data-edit-url", `/api/users/${userId}/`);
       
-      document.getElementById("userModal").classList.add("show");
+      // Hide email and password fields and remove required attribute
+      const emailGroup = document.getElementById("emailGroup");
+      const passwordGroup = document.getElementById("passwordGroup");
+      emailGroup.style.display = "none";
+      passwordGroup.style.display = "none";
+      document.getElementById("userEmail").required = false;
+      document.getElementById("userPassword").required = false;
       
-      // Hide email and password fields for editing
-      document.getElementById("userEmail").parentElement.style.display = "none";
-      document.getElementById("userPassword").parentElement.style.display = "none";
+      document.getElementById("userModal").classList.add("show");
     })
     .catch(error => {
+      console.error('Error:', error); // Debug log
       alert('Error: ' + error.message);
     });
 }

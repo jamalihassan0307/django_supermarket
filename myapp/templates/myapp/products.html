@@ -54,7 +54,7 @@
   <div class="modal-content">
     <span class="close" onclick="hideModal()">&times;</span>
     <h2 id="modalTitle">Add Product</h2>
-    <form id="productForm" method="post" action="{% url 'product_list' %}">
+    <form id="productForm" onsubmit="handleProductSubmit(event)">
       {% csrf_token %}
       <div class="input-group">
         <label for="productName">Product Name</label>
@@ -122,6 +122,37 @@ function updateStock(productId) {
     } else {
       alert('Error updating stock');
     }
+  });
+}
+
+function handleProductSubmit(event) {
+  event.preventDefault();
+  
+  const formData = {
+    name: document.getElementById('productName').value,
+    price: parseFloat(document.getElementById('productPrice').value),
+    stock: parseInt(document.getElementById('productStock').value)
+  };
+
+  fetch('/api/products/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    },
+    body: JSON.stringify(formData)
+  })
+  .then(response => {
+    if (response.ok) {
+      window.location.reload();
+    } else {
+      response.json().then(data => {
+        alert('Error: ' + (data.error || 'Failed to add product'));
+      });
+    }
+  })
+  .catch(error => {
+    alert('Error: ' + error.message);
   });
 }
 
